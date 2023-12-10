@@ -3,6 +3,13 @@ const path = require('path');
 const mongoose = require('mongoose');
 const axios = require('axios');
 const { User, Book } = require('./Backend/models/models'); // Adjust the path as necessary
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+
+require('dotenv').config();
+const app = express();
+app.use(express.json());
 
 // Database connection setup
 const MONGODB_URI = 'mongodb://admin:Sp00ky!@localhost:27017/?authSource=admin';
@@ -13,7 +20,31 @@ db.once('open', () => {
     console.log('Connected to MongoDB!');
 });
 
-const app = express();
+app.post('/register', async (req, res) => {
+    try {
+        const hashedPassword = await bcrypt.hash(req.body.password, 10);
+        const user = new User({
+            username: req.body.username,
+            email: req.body.email,
+            password: hashedPassword
+        });
+        await user.save();
+        res.status(201).send('User created');
+    } catch (error) {
+        res.status(500).send('Error registering new user');
+    }
+});
+
+app.post('/login', async (req, res) => {
+    const user = await User.findOne({ username: req.body.username });
+    if (user && await bcrypt.compare(req.body.password, user.password)) {
+        const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.status(200).json({ token: token });
+    } else {
+        res.status(400).send('Invalid credentials');
+    }
+});
+
 
 // Serve static files from the 'public' directory
 app.use(express.static('public'));
@@ -22,16 +53,12 @@ app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/searchbooks', async (req, res) => {
-    const query = req.query.query;
-    const url = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}`;
-
+app.get('/search-books', async (req, res) => {
     try {
-        const response = await axios.get(url);
+        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${req.query.q}&key=AIzaSyBlfcQQF3dzRI-RvZ73kGEJI8sm8r20y_c`);
         res.json(response.data);
     } catch (error) {
-        console.error('Error fetching books:', error);
-        res.status(500).send('Error fetching books');
+        res.status(500).send(error.toString());
     }
 });
 
@@ -40,6 +67,11 @@ app.get('/api/searchbooks', async (req, res) => {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+app.get('/search', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'search.html'));
+});
+
 
 
 
@@ -67,7 +99,6 @@ app.get('/users', async (req, res) => {
     }
 });
 
-// ... [rest of your user and book CRUD routes]
 
 // Start the server
 const PORT = process.env.PORT || 3000;

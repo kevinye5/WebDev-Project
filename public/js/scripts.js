@@ -105,53 +105,38 @@
 
 //google books api
 $(document).ready(function() {
-  $("#search").click(function() {
-      var searchData = $("#search-box").val();
-
-      if (searchData) {
-          $.ajax({
-              url: '/api/searchbooks?query=' + encodeURIComponent(searchData),
-              dataType: 'json',
-              success: function(response) {
-                  displayResults(response);
-              },
-              error: function() {
-                  alert('Error while fetching data.');
-              }
-          });
-      } else {
-          alert('Please enter a search term.');
-      }
+  $('#search').click(function() {
+      const query = $('#search-box').val();
+      $.ajax({
+          url: '/search-books',
+          type: 'GET',
+          data: { q: query },
+          success: function(response) {
+              displayResults(response);
+              console.log('sucess');
+          },
+          error: function(error) {
+              console.log(error);
+          }
+      });
   });
-
-  function displayResults(data) {
-      var outputList = document.getElementById('list-output');
-      outputList.innerHTML = '';
-
-      if (data.items && data.items.length > 0) {
-          data.items.forEach(item => {
-              var htmlCard = formatBookCard(item.volumeInfo);
-              outputList.innerHTML += htmlCard;
-          });
-      } else {
-          outputList.innerHTML = '<p>No results found.</p>';
-      }
-  }
-
-  function formatBookCard(book) {
-      return `
-          <div class="col-md-4">
-              <div class="card mb-4">
-                  <img src="${book.imageLinks ? book.imageLinks.thumbnail : 'https://via.placeholder.com/150'}" class="card-img-top" alt="${book.title}">
-                  <div class="card-body">
-                      <h5 class="card-title">${book.title}</h5>
-                      <p class="card-text">${book.authors ? book.authors.join(', ') : 'Unknown Author'}</p>
-                  </div>
-              </div>
-          </div>`;
-  }
 });
 
+function displayResults(data) {
+  let html = '';
+  data.items.forEach(item => {
+      html += `<div class="col-md-4">
+                  <div class="card mb-3">
+                      <img class="card-img-top" src="${item.volumeInfo.imageLinks.thumbnail}" alt="${item.volumeInfo.title}">
+                      <div class="card-body">
+                          <h5 class="card-title">${item.volumeInfo.title}</h5>
+                          <p class="card-text">${item.volumeInfo.authors.join(', ')}</p>
+                      </div>
+                  </div>
+              </div>`;
+  });
+  $('#list-output').html(html);
+}
 
 
 
